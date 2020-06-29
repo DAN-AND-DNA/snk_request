@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 )
@@ -345,26 +346,41 @@ func TestConcurrent(t *testing.T) {
 
 	request := New()
 
-	for i := 0; i < 70; i++ {
+	var waitForCompletion sync.WaitGroup
+
+	for i := 0; i < 700; i++ {
+		waitForCompletion.Add(2)
+
 		go func() {
-			for _, test := range test_instances {
-				if resp, body, err := request.Post(ts.URL + test.route).Set(test.req_header...).Send(test.request).End(); err != nil {
-					// 1. check error
-					assert.NotNil(t, err)
-					_ = body
-				} else {
+			if _, body, err := request.Post(ts.URL+"/json-req1").Set("snk1", "src1").Send(`{"name": "dan"}`).End(); err != nil {
+				// 1. check error
+				assert.NotNil(t, err)
+				_ = body
+			} else {
 
-					// 2. check header
-					for k, v := range test.resp_header {
-						assert.Equalf(t, v, resp.Header.Get(k), test.description)
-					}
-
-					// 3. check content of body
-					assert.Equalf(t, (string)(test.response), (string)(body), test.description)
-				}
+				// 2. check content of body
+				assert.Equalf(t, `{"age": 28}`, (string)(body), "json request 1")
 			}
+
+			waitForCompletion.Done()
+
+		}()
+
+		go func() {
+			if _, body, err := request.Post(ts.URL+"json-req2").Set("snk2", "src2").Send(`{"name": "lulu"}`).End(); err != nil {
+				// 1. check error
+				assert.NotNil(t, err)
+				_ = body
+			} else {
+
+				// 2. check content of body
+				assert.Equalf(t, `{"age": 30}`, (string)(body), "json request 2")
+			}
+
+			waitForCompletion.Done()
 		}()
 	}
 
-	time.Sleep(7 * time.Second)
+	waitForCompletion.Wait()
+
 }
