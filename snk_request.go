@@ -17,6 +17,10 @@ var (
 	json           = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
+type Snk_Config struct {
+	Read_timeout int
+}
+
 type Snk_request struct {
 	Connect_timeout int
 	Read_timeout    int
@@ -30,6 +34,44 @@ func New() *Snk_request {
 		Connect_timeout: 3,
 		Read_timeout:    10,
 		Write_timeout:   10,
+	}
+
+	request.http_client = http.Client{
+		Transport: &http.Transport{
+			Dial: func(network, addr string) (net.Conn, error) {
+				c, err := net.DialTimeout(network, addr, time.Duration(request.Connect_timeout)*time.Second)
+				if err != nil {
+					return nil, err
+				}
+
+				c.SetReadDeadline(time.Now().Add(time.Duration(request.Read_timeout) * time.Second))
+				c.SetWriteDeadline(time.Now().Add(time.Duration(request.Write_timeout) * time.Second))
+
+				return c, nil
+			},
+		},
+	}
+
+	return request
+}
+
+func New_timeout(connect_timeout, read_timeout, write_timeout int) *Snk_request {
+	if connect_timeout <= 0 {
+		connect_timeout = 3
+	}
+
+	if read_timeout <= 0 {
+		read_timeout = 10
+	}
+
+	if write_timeout <= 0 {
+		write_timeout = 10
+	}
+
+	request := &Snk_request{
+		Connect_timeout: connect_timeout,
+		Read_timeout:    read_timeout,
+		Write_timeout:   write_timeout,
 	}
 
 	request.http_client = http.Client{
