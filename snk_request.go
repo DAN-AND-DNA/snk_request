@@ -254,4 +254,44 @@ func (this *Before_end) End() (Resp, []byte, error) {
 	} else {
 		return resp, nil, err
 	}
+	return resp, nil, err
+}
+
+func (this *Before_end) End_benchmark() (Resp, []byte, error) {
+
+	resp := Resp{}
+
+	if this.method != "GET" && this.method != "POST" {
+		return resp, nil, ERR_BAD_METHOD
+	}
+
+	if this.url == "" {
+		return resp, nil, ERR_BAD_URL
+	}
+
+	if _, err := url.Parse(this.url); err != nil {
+		return resp, nil, ERR_BAD_URL
+	}
+
+	req, err := http.NewRequest(this.method, this.url, bytes.NewBuffer(this.body))
+	if err != nil {
+		return resp, nil, err
+	}
+
+	for k, v := range this.req_headers {
+		req.Header.Set(k, v)
+	}
+
+	if res, err := this.http_client.Do(req); err == nil {
+		defer res.Body.Close()
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return resp, nil, err
+		}
+		resp.Header = res.Header.Clone()
+		return resp, body, nil
+	} else {
+		return resp, nil, err
+	}
+
 }

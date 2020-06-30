@@ -382,5 +382,23 @@ func TestConcurrent(t *testing.T) {
 	}
 
 	waitForCompletion.Wait()
+}
 
+func BenchmarkGet(b *testing.B) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/json-req-resp":
+			_, _ = ioutil.ReadAll(r.Body)
+
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"age": 28}`))
+		}
+	}))
+
+	defer ts.Close()
+
+	request := New()
+	for i := 0; i < b.N; i++ {
+		request.Get(ts.URL+"/json-req-resp").Set("snk", "dan").Send([]byte(`{"name": "dan"}`)).End_benchmark()
+	}
 }
